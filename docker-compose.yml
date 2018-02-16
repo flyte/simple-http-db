@@ -1,0 +1,12 @@
+version: '3'
+services:
+  redis:
+    image: redis
+  http:
+    links:
+      - redis
+    build: .
+    environment:
+      REDIS_HOST: redis
+    ports:
+      - 5000:5000
