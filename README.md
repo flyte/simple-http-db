@@ -23,6 +23,12 @@ docker build . --tag simple-http-db
 docker run -ti --rm -p 5000:5000 -e REDIS_HOST=my.redis.host simple-http-db
 ```
 
+Or use the pre-built version from Docker Hub:
+
+```bash
+docker run -ti --rm -p 5000:5000 -e REDIS_HOST=my.redis.host flyte/simple-http-db
+```
+
 #### Python
 
 This project uses pipenv to install and manage virtualenvs. To install

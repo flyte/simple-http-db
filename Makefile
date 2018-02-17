@@ -1,6 +1,9 @@
 .PHONY: build run up clean
 
-build:
+requirements.txt:
+	pipenv lock --requirements > requirements.txt
+
+build: requirements.txt
 	docker build . --tag simple-http-db
 
 run: build
@@ -8,9 +11,6 @@ run: build
 
 up:
 	docker-compose up
-
-requirements.txt:
-	pipenv lock --requirements > requirements.txt
 
 clean:
 	rm -f requirements.txt
