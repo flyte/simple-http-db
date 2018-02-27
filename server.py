@@ -1,5 +1,6 @@
 import pickle
 from os import environ as env
+from os.path import basename
 
 from flask import Flask, request, Response
 from flask_cors import CORS
@@ -14,23 +15,84 @@ db = Redis(
 )
 
 
+def store_single(path):
+    db[path] = pickle.dumps(dict(
+        data=request.data,
+        headers=dict(request.headers),
+        content_type=request.content_type,
+        content_length=request.content_length
+    ))
+    del db['mp|%s' % path]
+
+
+def store_multipart(path):
+    files = {}
+    for key, file in request.files.items():
+        files[key] = dict(
+            filename=file.filename,
+            headers=dict(file.headers),
+            content_length=file.content_length,
+            content_type=file.content_type,
+            mimetype=file.mimetype,
+            data=file.stream.read()
+        )
+    db['mp|%s' % path] = pickle.dumps(dict(
+        data=request.data,
+        headers=dict(request.headers),
+        content_type=request.content_type,
+        content_length=request.content_length,
+        form=dict(request.form),
+        files=files
+    ))
+    del db[path]
+
+
+def retrieve_single(path):
+    return pickle.loads(db[path])
+
+
+def retrieve_multipart(path):
+    try:
+        mpart_path, mpart_lookup = path.rsplit('/', 1)
+    except ValueError:
+        raise KeyError()
+    val = pickle.loads(db['mp|%s' % mpart_path])
+    ret = dict(
+        data=None,
+        content_type=None
+    )
+    try:
+        ret['data'] = val['form'][mpart_lookup]
+        ret['content_type'] = 'text/plain'
+    except KeyError:
+        file = val['files'][mpart_lookup]
+        ret['data'] = file['data']
+        ret['content_type'] = file['content_type']
+    return ret
+
+
 @app.route('/', defaults={'path': ''}, methods=['GET', 'POST'])
 @app.route('/<path:path>', methods=['GET', 'POST'])
 def catch_all(path):
     if request.method == 'POST':
-        db[path] = pickle.dumps(dict(
-            data=request.data,
-            headers=dict(request.headers)
-        ))
+        content_type = request.headers.get('Content-Type', '')
+        if content_type.split(';')[0].lower() == 'multipart/form-data':
+            store_multipart(path)
+        else:
+            store_single(path)
         return '', 200
     else:
         try:
-            val = pickle.loads(db[path])
+            val = retrieve_single(path)
         except KeyError:
-            return '', 404
+            try:
+                val = retrieve_multipart(path)
+            except KeyError:
+                return '', 404
         return Response(
             val['data'],
-            headers={'Content-Type': val['headers'].get('Content-Type')}
+            content_type=val['content_type'],
+            headers=val.get('headers', {})
         )
 
 
