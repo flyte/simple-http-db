@@ -1,4 +1,5 @@
 import pickle
+import json
 from os import environ as env
 from os.path import basename
 
@@ -48,7 +49,19 @@ def store_multipart(path):
 
 
 def retrieve_single(path):
-    return pickle.loads(db[path])
+    try:
+        return pickle.loads(db[path])
+    except KeyError:
+        pass
+    val = pickle.loads(db['mp|%s' % path])
+    return dict(
+        data=json.dumps(dict(
+            type='multipart_metadata',
+            form_keys=list(val['form'].keys()),
+            file_keys=list(val['files'].keys())
+        )),
+        content_type='application/json',
+    )
 
 
 def retrieve_multipart(path):
