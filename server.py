@@ -53,6 +53,7 @@ def retrieve_single(path):
         return pickle.loads(db[path])
     except KeyError:
         pass
+    # Try returning some metadata about the multipart entry if exists
     val = pickle.loads(db['mp|%s' % path])
     return dict(
         data=json.dumps(dict(
